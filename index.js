@@ -1,18 +1,21 @@
-const redis = require('redis');
+const { createClient } = require('redis');
 
-// Connect to Redis server
-const client = redis.createClient();
+(async () => {
+  const client = await createClient();
 
-client.on('connect', () => {
-  console.log('Connected to Redis server');
-});
+  client.on('connect', async () => {
+    console.log('Connected to Redis server');
+  });
 
-client.on('error', (err) => {
-  console.error('Error connecting to Redis:', err);
-});
+  client.on('error', (err) => {
+    console.error('Error connecting to Redis:', err);
+  });
+  await performOperations(client);
+})();
 
 // Set state
-const setState = async (key, value) => {
+const setState = async (client, key, value) => {
+  console.log('######## client:', client);
   try {
     await client.set(key, value);
     console.log('State set successfully');
@@ -22,39 +25,40 @@ const setState = async (key, value) => {
 };
 
 // Get state
-const getState = async (key) => {
+const getState = async (client, key) => {
   try {
     const reply = await client.get(key);
     console.log('Current state:', reply);
+    return reply;
   } catch (error) {
     console.error('Error getting state:', error);
+    return null;
   }
 };
 
 // Usage
-const performOperations = async () => {
+const performOperations = async (client) => {
   try {
-    await setState('name', 'Roland Levy');
-    const name = await getState('myKey');
-    console.log('########## name:', name)
+    await setState(client, 'name', 'Roland Levy');
+    const name = await getState(client, 'name');
+    console.log('Name:', name);
+    // closeConnection(client);
   } catch (error) {
     console.error('Error performing state operations:', error);
-  } finally {
-    closeConnection();
+    closeConnection(client);
   }
 };
 
 // Close Redis connection
-const closeConnection = () => {
-  client.quit((err, reply) => {
-    if (err) {
-      console.error('Error closing Redis connection:', err);
-    } else {
-      console.log('Redis connection closed');
-    }
-  });
+const closeConnection = (client) => {
+  setTimeout(() => {
+    // wait for current operations to finish
+    client.quit((err, reply) => {
+      if (err) {
+        console.error('Error closing Redis connection:', err);
+      } else {
+        console.log('Redis connection closed');
+      }
+    });
+  }, 1000);
 };
-
-(async () => {
-  await performOperations();
-})();
